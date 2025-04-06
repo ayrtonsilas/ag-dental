@@ -7,6 +7,7 @@ interface User {
   id: string
   name: string
   email: string
+  phone?: string
   role: string
   companyId?: string
 }
@@ -27,6 +28,7 @@ interface AuthContextType {
   register: (userData: {
     name: string
     email: string
+    phone: string
     password: string
     companyName?: string
     companyDocument?: string
@@ -139,6 +141,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const register = async (userData: {
     name: string
     email: string
+    phone: string
     password: string
     companyName?: string
     companyDocument?: string
