@@ -6,25 +6,8 @@ import PatientForm from '@/components/patients/PatientForm'
 import { useNotification } from '@/components/Notification'
 import { useParams } from 'next/navigation'
 
-interface Patient {
-  id: string
-  name: string
-  email: string
-  phone: string
-  documentNumber: string
-  dateOfBirth: string | null
-  gender: string
-  address: string
-  healthInsurance: string
-  healthInsuranceNumber: string
-  observations: string
-  user?: {
-    id: string
-    name: string
-    email: string
-    role: string
-  }
-}
+// Import the Patient interface from the central types file
+import { Patient as PatientType, PatientFormData } from '@/types'
 
 interface PageProps {
   params: {
@@ -38,7 +21,7 @@ export default function PatientDetailPage({ params }: PageProps) {
   const id = routeParams.id || params.id // Fallback to props params if needed
   const router = useRouter()
   const { showNotification } = useNotification()
-  const [patient, setPatient] = useState<Patient | null>(null)
+  const [patient, setPatient] = useState<PatientType | null>(null)
   const [isEditing, setIsEditing] = useState(false)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -94,14 +77,20 @@ export default function PatientDetailPage({ params }: PageProps) {
     }
   }
   
-  const handleSubmit = async (data: Omit<Patient, 'id'>) => {
+  const handleSubmit = async (data: PatientFormData) => {
     try {
+      // Ensure isFirstVisit is explicitly a boolean
+      const patientData = {
+        ...data,
+        isFirstVisit: Boolean(data.isFirstVisit)
+      }
+
       const response = await fetch(`/api/patients/${id}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify(data)
+        body: JSON.stringify(patientData)
       })
       
       if (!response.ok) {
@@ -248,6 +237,20 @@ export default function PatientDetailPage({ params }: PageProps) {
               <div>
                 <dt className="text-sm font-medium text-gray-500">Número da Carteirinha</dt>
                 <dd className="mt-1 text-sm text-gray-900">{patient.healthInsuranceNumber || '-'}</dd>
+              </div>
+              <div>
+                <dt className="text-sm font-medium text-gray-500">Primeira Consulta</dt>
+                <dd className="mt-1 text-sm text-gray-900">
+                  {patient.isFirstVisit === true ? (
+                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                      Sim
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+                      Não
+                    </span>
+                  )}
+                </dd>
               </div>
               <div className="md:col-span-2">
                 <dt className="text-sm font-medium text-gray-500">Observações</dt>

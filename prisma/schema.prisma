@@ -62,6 +62,7 @@ model Patient {
   healthInsurance      String?
   healthInsuranceNumber String?
   observations         String?
+  isFirstVisit         Boolean   @default(false)
   createdAt            DateTime  @default(now())
   updatedAt            DateTime  @updatedAt
   companyId            String

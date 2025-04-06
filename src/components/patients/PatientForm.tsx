@@ -1,25 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { formatPhone, unformatValue } from '@/lib/masks'
-
-interface Patient {
-  id: string
-  name: string
-  email: string
-  phone: string
-  documentNumber: string
-  dateOfBirth: string | null
-  gender: string
-  address: string
-  healthInsurance: string
-  healthInsuranceNumber: string
-  observations: string
-  user?: {
-    id: string
-    name: string
-    email: string
-    role: string
-  }
-}
+import { Patient, PatientFormData } from '@/types'
 
 // Function to format CPF
 function formatCPF(value: string): string {
@@ -36,12 +17,13 @@ function formatCPF(value: string): string {
 
 interface PatientFormProps {
   patient?: Patient | null
-  onSubmit: (data: Omit<Patient, 'id' | 'user'>) => Promise<void>
+  onSubmit: (data: PatientFormData) => Promise<void>
   onCancel: () => void
+  loading?: boolean
 }
 
-export default function PatientForm({ patient, onSubmit, onCancel }: PatientFormProps) {
-  const [formData, setFormData] = useState<Omit<Patient, 'id' | 'user'>>({
+export default function PatientForm({ patient, onSubmit, onCancel, loading: externalLoading }: PatientFormProps) {
+  const [formData, setFormData] = useState<PatientFormData>({
     name: '',
     email: '',
     phone: '',
@@ -51,7 +33,8 @@ export default function PatientForm({ patient, onSubmit, onCancel }: PatientForm
     address: '',
     healthInsurance: '',
     healthInsuranceNumber: '',
-    observations: ''
+    observations: '',
+    isFirstVisit: false
   })
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -75,7 +58,8 @@ export default function PatientForm({ patient, onSubmit, onCancel }: PatientForm
         address: patient.address,
         healthInsurance: patient.healthInsurance,
         healthInsuranceNumber: patient.healthInsuranceNumber,
-        observations: patient.observations
+        observations: patient.observations,
+        isFirstVisit: patient.isFirstVisit || false
       })
     }
   }, [patient])
@@ -100,6 +84,14 @@ export default function PatientForm({ patient, onSubmit, onCancel }: PatientForm
     }))
   }
 
+  const handleCheckboxChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, checked } = e.target
+    setFormData(prev => ({
+      ...prev,
+      [name]: checked
+    }))
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
@@ -111,7 +103,8 @@ export default function PatientForm({ patient, onSubmit, onCancel }: PatientForm
         phone: unformatValue(formData.phone),
         documentNumber: unformatValue(formData.documentNumber),
         healthInsuranceNumber: formData.healthInsuranceNumber ? formData.healthInsuranceNumber.replace(/\D/g, '') : '',
-        dateOfBirth: formData.dateOfBirth ? new Date(formData.dateOfBirth).toISOString() : null
+        dateOfBirth: formData.dateOfBirth ? new Date(formData.dateOfBirth).toISOString() : null,
+        isFirstVisit: Boolean(formData.isFirstVisit)
       }
       await onSubmit(submitData)
     } catch (err) {
@@ -277,6 +270,23 @@ export default function PatientForm({ patient, onSubmit, onCancel }: PatientForm
             <p className="mt-1 text-xs text-gray-500">Exemplo: 1234-5678-9012-3456</p>
           </div>
         </div>
+
+        <div className="md:col-span-2">
+          <div className="flex items-center">
+            <input
+              type="checkbox"
+              id="isFirstVisit"
+              name="isFirstVisit"
+              checked={formData.isFirstVisit}
+              onChange={handleCheckboxChange}
+              className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+            />
+            <label htmlFor="isFirstVisit" className="ml-2 block text-sm text-gray-700">
+              Primeira consulta
+            </label>
+          </div>
+          <p className="mt-1 text-xs text-gray-500">Marque esta opção se esta for a primeira consulta do paciente</p>
+        </div>
       </div>
 
       <div>
@@ -324,10 +334,10 @@ export default function PatientForm({ patient, onSubmit, onCancel }: PatientForm
         </button>
         <button
           type="submit"
-          disabled={loading}
+          disabled={loading || externalLoading}
           className="px-4 py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          {loading ? 'Salvando...' : 'Salvar'}
+          {loading || externalLoading ? 'Salvando...' : 'Salvar'}
         </button>
       </div>
     </form>

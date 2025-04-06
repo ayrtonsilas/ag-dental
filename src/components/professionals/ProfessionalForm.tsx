@@ -27,6 +27,28 @@ interface ProfessionalFormProps {
   onCancel: () => void
 }
 
+// Predefined list of dental specialties
+const SPECIALTIES = [
+  'Clínica Geral',
+  'Dentística',
+  'Endodontia',
+  'Estomatologia',
+  'Implantodontia',
+  'Odontopediatria',
+  'Ortodontia',
+  'Periodontia',
+  'Prótese Dentária',
+  'Radiologia Odontológica',
+  'Cirurgia Bucomaxilofacial',
+  'Odontogeriatria',
+  'Odontologia Estética',
+  'Odontologia do Trabalho',
+  'Disfunção Temporomandibular',
+  'Odontologia para Pacientes Especiais',
+  'Harmonização Orofacial',
+  'Saúde Coletiva'
+]
+
 // Function to format CPF
 function formatCPF(value: string): string {
   // Remove non-numeric characters
@@ -201,16 +223,21 @@ export default function ProfessionalForm({ professional, onSubmit, onCancel }: P
             Especialidade <span className="text-red-500">*</span>
           </label>
           <div className="mt-1">
-            <input
-              type="text"
+            <select
               id="specialty"
               name="specialty"
               value={formData.specialty}
               onChange={handleChange}
               required
               className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-              placeholder="Especialidade do profissional"
-            />
+            >
+              <option value="">Selecione uma especialidade</option>
+              {SPECIALTIES.map(specialty => (
+                <option key={specialty} value={specialty}>
+                  {specialty}
+                </option>
+              ))}
+            </select>
           </div>
         </div>
       </div>

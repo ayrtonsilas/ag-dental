@@ -5,26 +5,14 @@ import { useRouter } from 'next/navigation'
 import PatientsList from '@/components/patients/PatientsList'
 import PatientForm from '@/components/patients/PatientForm'
 import { useNotification } from '@/components/Notification'
-
-interface Patient {
-  id: string
-  name: string
-  email: string
-  phone: string
-  documentNumber: string
-  dateOfBirth: string | null
-  gender: string
-  address: string
-  healthInsurance: string
-  healthInsuranceNumber: string
-  observations: string
-}
+import { Patient, PatientFormData } from '@/types'
 
 export default function PatientsPage() {
   const router = useRouter()
   const { showNotification } = useNotification()
   const [isEditing, setIsEditing] = useState(false)
   const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null)
+  const [isSubmitting, setIsSubmitting] = useState(false)
   
   const handleEdit = (patient: Patient) => {
     setSelectedPatient(patient)
@@ -57,8 +45,16 @@ export default function PatientsPage() {
     }
   }
   
-  const handleSubmit = async (data: Omit<Patient, 'id'>) => {
+  const handleSubmit = async (data: PatientFormData) => {
     try {
+      setIsSubmitting(true)
+      
+      // Ensure all required fields are present and properly typed
+      const patientData = {
+        ...data,
+        isFirstVisit: data.isFirstVisit === undefined ? false : data.isFirstVisit
+      }
+      
       const url = selectedPatient 
         ? `/api/patients/${selectedPatient.id}` 
         : '/api/patients'
@@ -70,7 +66,7 @@ export default function PatientsPage() {
         headers: {
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify(data)
+        body: JSON.stringify(patientData)
       })
       
       if (!response.ok) {
@@ -84,6 +80,8 @@ export default function PatientsPage() {
     } catch (error) {
       console.error('Error submitting patient:', error)
       showNotification(`Erro ao ${selectedPatient ? 'atualizar' : 'criar'} paciente. Tente novamente.`, 'error')
+    } finally {
+      setIsSubmitting(false)
     }
   }
   
@@ -122,6 +120,7 @@ export default function PatientsPage() {
             patient={selectedPatient}
             onSubmit={handleSubmit}
             onCancel={handleCancel}
+            loading={isSubmitting}
           />
         </div>
       ) : (

@@ -2,26 +2,8 @@
 
 import React, { useState, useEffect } from 'react'
 import Pagination from '@/components/Pagination'
-
-interface Patient {
-  id: string
-  name: string
-  email: string
-  phone: string
-  documentNumber: string
-  dateOfBirth: string | null
-  gender: string
-  address: string
-  healthInsurance: string
-  healthInsuranceNumber: string
-  observations: string
-  user?: {
-    id: string
-    name: string
-    email: string
-    role: string
-  }
-}
+import { formatPhone } from '@/lib/masks'
+import { Patient } from '@/types'
 
 interface PatientsListProps {
   onEdit: (patient: Patient) => void
@@ -101,6 +83,12 @@ export default function PatientsList({ onEdit, onDelete, onView }: PatientsListP
       default: return '-'
     }
   }
+
+  // Format phone number for display
+  const displayPhone = (phone: string) => {
+    if (!phone) return '-'
+    return formatPhone(phone)
+  }
   
   return (
     <div className="bg-white shadow rounded-lg p-6">
@@ -153,6 +141,7 @@ export default function PatientsList({ onEdit, onDelete, onView }: PatientsListP
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Número do Documento</th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Data de Nascimento</th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Gênero</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Primeira Consulta</th>
                   <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Ações</th>
                 </tr>
               </thead>
@@ -161,10 +150,21 @@ export default function PatientsList({ onEdit, onDelete, onView }: PatientsListP
                   <tr key={patient.id} className="hover:bg-gray-50">
                     <td className="px-4 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{patient.name}</td>
                     <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500">{patient.email || '-'}</td>
-                    <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500">{patient.phone || '-'}</td>
+                    <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500">{displayPhone(patient.phone)}</td>
                     <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500">{patient.documentNumber || '-'}</td>
                     <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500">{formatDate(patient.dateOfBirth)}</td>
                     <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500">{formatGender(patient.gender)}</td>
+                    <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500">
+                      {patient.isFirstVisit ? (
+                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                          Sim
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+                          Não
+                        </span>
+                      )}
+                    </td>
                     <td className="px-4 py-4 whitespace-nowrap text-right text-sm font-medium">
                       <div className="flex justify-end space-x-2">
                         <button
