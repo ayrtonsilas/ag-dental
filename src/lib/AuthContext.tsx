@@ -1,14 +1,36 @@
 'use client'
 
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react'
+import { useRouter } from 'next/navigation'
+
+interface User {
+  id: string
+  name: string
+  email: string
+  role: string
+  companyId?: string
+}
+
+interface Company {
+  id: string
+  name: string
+  document: string
+}
 
 interface AuthContextType {
   isAuthenticated: boolean
   isLoading: boolean
-  user: any | null
+  user: User | null
+  company: Company | null
   login: (email: string, password: string) => Promise<{success: boolean, error?: string}>
   logout: () => Promise<void>
-  register: (userData: any) => Promise<{success: boolean, error?: string}>
+  register: (userData: {
+    name: string
+    email: string
+    password: string
+    companyName?: string
+    companyDocument?: string
+  }) => Promise<{success: boolean, error?: string}>
   resetPassword: (email: string) => Promise<{success: boolean, error?: string}>
 }
 
@@ -27,22 +49,29 @@ interface AuthProviderProps {
 }
 
 export function AuthProvider({ children }: AuthProviderProps) {
-  const [user, setUser] = useState<any | null>(null)
+  const [user, setUser] = useState<User | null>(null)
+  const [company, setCompany] = useState<Company | null>(null)
   const [isLoading, setIsLoading] = useState(true)
+  const router = useRouter()
 
   useEffect(() => {
     // Check if user is already logged in
     const checkAuthStatus = async () => {
       try {
-        // In a real app, this would check a token in localStorage and validate it
-        const savedUser = localStorage.getItem('dental_user')
-        if (savedUser) {
-          setUser(JSON.parse(savedUser))
+        setIsLoading(true)
+        const response = await fetch('/api/auth/me', {
+          method: 'GET',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+        })
+
+        if (response.ok) {
+          const data = await response.json()
+          setUser(data.user)
+          setCompany(data.company || null)
         }
       } catch (error) {
         console.error('Erro ao verificar autenticação:', error)
-        // If there's an error, clear any corrupted state
-        localStorage.removeItem('dental_user')
       } finally {
         setIsLoading(false)
       }
@@ -55,28 +84,26 @@ export function AuthProvider({ children }: AuthProviderProps) {
     try {
       setIsLoading(true)
       
-      // This is a mock implementation - would be replaced with actual API call
-      // Simulating API delay
-      await new Promise(resolve => setTimeout(resolve, 1000))
+      const response = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password }),
+        credentials: 'include',
+      })
       
-      // Mock successful login (would be replaced with actual API validation)
-      if (email === 'admin@example.com' && password === 'password') {
-        const userData = {
-          id: '1',
-          name: 'Administrador',
-          email: 'admin@example.com',
-          role: 'admin'
+      const data = await response.json()
+      
+      if (!response.ok) {
+        return { 
+          success: false, 
+          error: data.error || 'Erro ao fazer login' 
         }
-        
-        localStorage.setItem('dental_user', JSON.stringify(userData))
-        setUser(userData)
-        return { success: true }
       }
       
-      return { 
-        success: false, 
-        error: 'Email ou senha inválidos. Tente novamente.' 
-      }
+      setUser(data.user)
+      setCompany(data.company || null)
+      
+      return { success: true }
     } catch (error) {
       console.error('Erro ao fazer login:', error)
       return { 
@@ -91,9 +118,17 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const logout = async () => {
     try {
       setIsLoading(true)
-      // Would make an API call to invalidate tokens in a real app
-      localStorage.removeItem('dental_user')
+      
+      await fetch('/api/auth/logout', {
+        method: 'POST',
+        credentials: 'include',
+      })
+      
       setUser(null)
+      setCompany(null)
+      
+      // Redirect to home page
+      router.push('/')
     } catch (error) {
       console.error('Erro ao fazer logout:', error)
     } finally {
@@ -101,21 +136,40 @@ export function AuthProvider({ children }: AuthProviderProps) {
     }
   }
 
-  const register = async (userData: any) => {
+  const register = async (userData: {
+    name: string
+    email: string
+    password: string
+    companyName?: string
+    companyDocument?: string
+  }) => {
     try {
       setIsLoading(true)
       
-      // This is a mock implementation - would be replaced with actual API call
-      await new Promise(resolve => setTimeout(resolve, 1000))
+      const response = await fetch('/api/auth/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(userData),
+        credentials: 'include',
+      })
       
-      // Mock successful registration
-      const newUser = {
-        id: Date.now().toString(),
-        ...userData
+      const data = await response.json()
+      
+      if (!response.ok) {
+        return { 
+          success: false, 
+          error: data.error || 'Erro ao registrar' 
+        }
       }
       
-      localStorage.setItem('dental_user', JSON.stringify(newUser))
-      setUser(newUser)
+      setUser(data.user)
+      if (userData.companyName && userData.companyDocument) {
+        setCompany({
+          id: data.user.companyId,
+          name: userData.companyName,
+          document: userData.companyDocument
+        })
+      }
       
       return { success: true }
     } catch (error) {
@@ -133,10 +187,21 @@ export function AuthProvider({ children }: AuthProviderProps) {
     try {
       setIsLoading(true)
       
-      // This is a mock implementation - would be replaced with actual API call
-      await new Promise(resolve => setTimeout(resolve, 1000))
+      const response = await fetch('/api/auth/recover', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email }),
+      })
       
-      // Mock successful password reset request
+      const data = await response.json()
+      
+      if (!response.ok) {
+        return { 
+          success: false, 
+          error: data.error || 'Erro ao solicitar redefinição de senha' 
+        }
+      }
+      
       return { success: true }
     } catch (error) {
       console.error('Erro ao solicitar redefinição de senha:', error)
@@ -153,6 +218,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     isAuthenticated: !!user,
     isLoading,
     user,
+    company,
     login,
     logout,
     register,

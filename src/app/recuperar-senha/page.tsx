@@ -3,106 +3,98 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import { useAuth } from '@/lib/AuthContext'
-import { LoadingIndicator } from '@/components/LoadingIndicator'
 
-export default function RecuperarSenhaPage() {
+export default function PasswordRecoveryPage() {
   const [email, setEmail] = useState('')
-  const [message, setMessage] = useState<{ text: string; isError: boolean } | null>(null)
+  const [error, setError] = useState('')
+  const [success, setSuccess] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
-  const { resetPassword, isLoading: authLoading } = useAuth()
-
+  
+  const { resetPassword } = useAuth()
+  
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    
-    setMessage(null)
+    setError('')
+    setSuccess(false)
     setIsLoading(true)
     
+    if (!email) {
+      setError('Por favor, informe seu email')
+      setIsLoading(false)
+      return
+    }
+    
     try {
-      const trimmedEmail = email.trim()
-      
-      // Basic validation
-      if (!trimmedEmail) {
-        setMessage({ text: 'Por favor, informe seu email', isError: true })
-        setIsLoading(false)
-        return
-      }
-
-      const result = await resetPassword(trimmedEmail)
+      const result = await resetPassword(email)
       
       if (result.success) {
-        setMessage({ 
-          text: 'Enviamos instruções para recuperação de senha no seu email.', 
-          isError: false 
-        })
+        setSuccess(true)
         setEmail('')
       } else {
-        setMessage({ text: result.error || 'Falha ao processar solicitação', isError: true })
+        setError(result.error || 'Erro ao solicitar recuperação de senha')
       }
     } catch {
-      setMessage({ 
-        text: 'Erro ao solicitar recuperação de senha. Tente novamente.', 
-        isError: true 
-      })
+      setError('Ocorreu um erro ao solicitar recuperação de senha')
     } finally {
       setIsLoading(false)
     }
   }
-
-  if (authLoading) {
-    return <LoadingIndicator fullScreen />
-  }
-
+  
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-md w-full space-y-8 bg-white p-8 rounded-lg shadow-md">
+      <div className="max-w-md w-full space-y-8">
         <div>
-          <h1 className="text-center text-3xl font-bold text-blue-600">Sistema Odontológico</h1>
-          <h2 className="mt-6 text-center text-2xl font-semibold text-gray-900">Recuperar Senha</h2>
+          <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
+            Recuperar senha
+          </h2>
           <p className="mt-2 text-center text-sm text-gray-600">
-            Digite seu email para receber as instruções de recuperação de senha
+            Digite seu email para receber um link de recuperação de senha
           </p>
         </div>
         
         <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
-          {message && (
-            <div className={`px-4 py-3 rounded relative ${
-              message.isError 
-                ? 'bg-red-50 border border-red-200 text-red-700' 
-                : 'bg-green-50 border border-green-200 text-green-700'
-            }`}>
-              {message.text}
+          <div className="rounded-md shadow-sm -space-y-px">
+            <div>
+              <label htmlFor="email" className="sr-only">Email</label>
+              <input
+                id="email"
+                name="email"
+                type="email"
+                autoComplete="email"
+                required
+                value={email}
+                onChange={e => setEmail(e.target.value)}
+                className="appearance-none rounded-md relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm"
+                placeholder="Email"
+                disabled={success}
+              />
+            </div>
+          </div>
+
+          {error && (
+            <div className="p-2 text-sm text-red-600 bg-red-50 rounded">
+              {error}
             </div>
           )}
           
-          <div>
-            <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
-              Email
-            </label>
-            <input
-              id="email"
-              name="email"
-              type="email"
-              autoComplete="email"
-              required
-              value={email}
-              onChange={e => setEmail(e.target.value)}
-              className="appearance-none relative block w-full px-3 py-2 border border-gray-300 rounded-md placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm"
-              placeholder="seu@email.com"
-            />
-          </div>
+          {success && (
+            <div className="p-2 text-sm text-green-600 bg-green-50 rounded">
+              Um link de recuperação foi enviado para seu email, caso ele esteja cadastrado em nosso sistema.
+            </div>
+          )}
 
           <div>
             <button
               type="submit"
-              disabled={isLoading}
-              className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
+              disabled={isLoading || success}
+              className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {isLoading ? 'Enviando...' : 'Enviar instruções de recuperação'}
+              {isLoading ? 'Enviando...' : 'Enviar link de recuperação'}
             </button>
           </div>
           
-          <div className="text-center">
-            <Link href="/login" className="font-medium text-blue-600 hover:text-blue-500 text-sm">
+          <div className="flex items-center justify-center">
+            <Link href="/login" className="font-medium text-indigo-600 hover:text-indigo-500">
               Voltar para o login
             </Link>
           </div>
