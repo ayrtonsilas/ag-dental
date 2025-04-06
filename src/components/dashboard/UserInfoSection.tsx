@@ -1,5 +1,5 @@
 import React from 'react'
-import { User } from '@/types/auth'
+import { User } from '@prisma/client'
 
 interface UserInfoSectionProps {
   user: User

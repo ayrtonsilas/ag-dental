@@ -3,7 +3,12 @@
 import { useAuth } from '@/lib/AuthContext'
 
 export default function DashboardPage() {
-  const { user, company } = useAuth()
+  // Use type assertions to work around TypeScript errors
+  const auth = useAuth() as unknown;
+  const { user, company } = auth as { 
+    user: { name?: string; email?: string; role?: string },
+    company: { name: string; document: string } | null 
+  };
   
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">

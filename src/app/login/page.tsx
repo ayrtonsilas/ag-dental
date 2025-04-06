@@ -4,21 +4,21 @@ import { useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { useAuth } from '@/lib/AuthContext'
+import { useNotification } from '@/components/Notification'
 
 export default function LoginPage() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
-  const [error, setError] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   
   const { login } = useAuth()
   const router = useRouter()
+  const { showNotification } = useNotification()
   const searchParams = useSearchParams()
   const callbackUrl = searchParams.get('callbackUrl') || '/dashboard'
   
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    setError('')
     setIsLoading(true)
     
     try {
@@ -27,10 +27,10 @@ export default function LoginPage() {
       if (result.success) {
         router.push(callbackUrl)
       } else {
-        setError(result.error || 'Erro ao fazer login')
+        showNotification(result.error || 'Erro ao fazer login', 'error')
       }
     } catch {
-      setError('Ocorreu um erro ao fazer login')
+      showNotification('Ocorreu um erro ao fazer login', 'error')
     } finally {
       setIsLoading(false)
     }
@@ -89,15 +89,9 @@ export default function LoginPage() {
                 </div>
               </div>
 
-              {error && (
-                <div className="p-3 text-sm font-medium text-white bg-red-500 rounded-lg">
-                  {error}
-                </div>
-              )}
-
               <div className="flex items-center justify-end">
                 <div className="text-sm">
-                  <Link href="/recuperar-senha" className="font-medium text-blue-600 hover:text-blue-500 transition-colors">
+                  <Link href="/password-recovery" className="font-medium text-blue-600 hover:text-blue-500 transition-colors">
                     Esqueceu sua senha?
                   </Link>
                 </div>

@@ -2,9 +2,8 @@ import { SignJWT, jwtVerify } from 'jose'
 import { cookies } from 'next/headers'
 import { NextRequest, NextResponse } from 'next/server'
 import bcrypt from 'bcryptjs'
-import { PrismaClient, User } from '@prisma/client'
-
-const prisma = new PrismaClient()
+import { User } from '@prisma/client'
+import { db } from './db'
 
 // Constants
 const JWT_SECRET = process.env.JWT_SECRET || 'default-secret-key'
@@ -70,9 +69,11 @@ export const setAuthCookie = (response: NextResponse, token: string) => {
 }
 
 // Get JWT token from cookies
-export const getAuthToken = (): string | undefined => {
+export const getAuthToken = async (): Promise<string | undefined> => {
   try {
-    return cookies().get(COOKIE_NAME)?.value
+    const cookieStore = await cookies()
+    const authCookie = cookieStore.get(COOKIE_NAME)
+    return authCookie?.value
   } catch {
     return undefined
   }
@@ -80,7 +81,7 @@ export const getAuthToken = (): string | undefined => {
 
 // Verify authentication middleware
 export const validateAuth = async (): Promise<SafeUser | null> => {
-  const token = getAuthToken()
+  const token = await getAuthToken()
   
   if (!token) {
     return null
@@ -88,7 +89,7 @@ export const validateAuth = async (): Promise<SafeUser | null> => {
   
   try {
     const payload = await verifyJWT<{ id: string }>(token)
-    const user = await prisma.user.findUnique({
+    const user = await db.user.findUnique({
       where: { id: payload.id },
     })
     

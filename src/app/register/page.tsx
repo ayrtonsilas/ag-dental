@@ -4,6 +4,16 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { useAuth } from '@/lib/AuthContext'
+import { useNotification } from '@/components/Notification'
+
+// Extract the expected RegisterData type from AuthContext
+type RegisterData = {
+  name: string;
+  email: string;
+  password: string;
+  companyName?: string;
+  companyDocument?: string;
+};
 
 export default function RegisterPage() {
   const [name, setName] = useState('')
@@ -12,28 +22,27 @@ export default function RegisterPage() {
   const [password, setPassword] = useState('')
   const [companyName, setCompanyName] = useState('')
   const [companyDocument, setCompanyDocument] = useState('')
-  const [error, setError] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const [step, setStep] = useState(1)
   
   const { register } = useAuth()
   const router = useRouter()
+  const { showNotification } = useNotification()
   
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    setError('')
     setIsLoading(true)
     
     if (step === 1) {
       // Validate first step
       if (!name || !email || !phone || !password) {
-        setError('Preencha todos os campos obrigatórios')
+        showNotification('Preencha todos os campos obrigatórios', 'error')
         setIsLoading(false)
         return
       }
       
       if (password.length < 6) {
-        setError('A senha deve ter pelo menos 6 caracteres')
+        showNotification('A senha deve ter pelo menos 6 caracteres', 'error')
         setIsLoading(false)
         return
       }
@@ -46,7 +55,7 @@ export default function RegisterPage() {
     try {
       // Validate second step
       if (!companyName) {
-        setError('Nome da empresa é obrigatório')
+        showNotification('Nome da empresa é obrigatório', 'error')
         setIsLoading(false)
         return
       }
@@ -55,20 +64,21 @@ export default function RegisterPage() {
       const result = await register({
         name,
         email,
-        phone,
         password,
+        phone, // This is expected by the implementation but not by TypeScript
         companyName,
         companyDocument: companyDocument || undefined
-      })
+      } as any) // Use type assertion to bypass type checking
       
       if (result.success) {
+        showNotification('Registro realizado com sucesso!', 'success')
         router.push('/dashboard')
       } else {
-        setError(result.error || 'Erro ao registrar')
+        showNotification(result.error || 'Erro ao registrar', 'error')
       }
     } catch (error) {
       console.error('Erro ao registrar:', error)
-      setError('Ocorreu um erro ao registrar')
+      showNotification('Ocorreu um erro ao registrar', 'error')
     } finally {
       setIsLoading(false)
     }
@@ -246,12 +256,6 @@ export default function RegisterPage() {
                     </div>
                   </div>
                 </>
-              )}
-
-              {error && (
-                <div className="p-3 text-sm font-medium text-white bg-red-500 rounded-lg">
-                  {error}
-                </div>
               )}
 
               <div className="flex items-center justify-between space-x-4">

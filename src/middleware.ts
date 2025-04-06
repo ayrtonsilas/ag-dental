@@ -11,7 +11,7 @@ const protectedPaths = [
 const authPaths = [
   '/login',
   '/register',
-  '/recuperar-senha',
+  '/password-recovery',
 ]
 
 export async function middleware(request: NextRequest) {
