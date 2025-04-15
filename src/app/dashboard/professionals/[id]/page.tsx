@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import ProfessionalForm from '@/components/professionals/ProfessionalForm'
 import { useNotification } from '@/components/Notification'
+import { formatPhone, formatCNPJ } from '@/lib/masks'
 
 interface ProfessionalUser {
   id: string
@@ -127,6 +128,18 @@ export default function ProfessionalDetailPage({ params }: PageProps) {
     }
   }
   
+  // Format CNPJ for display
+  const displayCNPJ = (cnpj: string) => {
+    if (!cnpj) return '-'
+    return formatCNPJ(cnpj)
+  }
+  
+  // Format phone for display
+  const displayPhone = (phone: string) => {
+    if (!phone) return '-'
+    return formatPhone(phone)
+  }
+  
   if (loading) {
     return (
       <div className="container mx-auto px-4 py-8">
@@ -210,11 +223,11 @@ export default function ProfessionalDetailPage({ params }: PageProps) {
               </div>
               <div>
                 <dt className="text-sm font-medium text-gray-500">Telefone</dt>
-                <dd className="mt-1 text-sm text-gray-900">{professional.phone || '-'}</dd>
+                <dd className="mt-1 text-sm text-gray-900">{displayPhone(professional.phone)}</dd>
               </div>
               <div>
                 <dt className="text-sm font-medium text-gray-500">CNPJ</dt>
-                <dd className="mt-1 text-sm text-gray-900">{professional.cnpj || '-'}</dd>
+                <dd className="mt-1 text-sm text-gray-900">{displayCNPJ(professional.cnpj)}</dd>
               </div>
               <div>
                 <dt className="text-sm font-medium text-gray-500">Especialidade</dt>

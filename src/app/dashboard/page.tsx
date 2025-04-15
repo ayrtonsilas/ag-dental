@@ -1,14 +1,21 @@
 'use client'
 
 import { useAuth } from '@/lib/AuthContext'
+import { formatCNPJ } from '@/lib/masks'
 
 export default function DashboardPage() {
   // Use type assertions to work around TypeScript errors
-  const auth = useAuth() as unknown;
+  const auth = useAuth() as unknown
   const { user, company } = auth as { 
     user: { name?: string; email?: string; role?: string },
     company: { name: string; document: string } | null 
-  };
+  }
+
+  // Format CNPJ for display
+  const displayCNPJ = (cnpj: string) => {
+    if (!cnpj) return '-'
+    return formatCNPJ(cnpj)
+  }
   
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -45,7 +52,7 @@ export default function DashboardPage() {
                 </div>
                 <div className="sm:col-span-1">
                   <dt className="text-sm font-medium text-gray-500">CNPJ</dt>
-                  <dd className="mt-1 text-base font-medium text-gray-900">{company.document}</dd>
+                  <dd className="mt-1 text-base font-medium text-gray-900">{displayCNPJ(company.document)}</dd>
                 </div>
               </>
             )}

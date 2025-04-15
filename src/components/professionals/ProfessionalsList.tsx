@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react'
 import Pagination from '@/components/Pagination'
+import { formatPhone, formatCNPJ } from '@/lib/masks'
 
 interface ProfessionalUser {
   id: string
@@ -92,6 +93,18 @@ export default function ProfessionalsList({ onEdit, onDelete, onView }: Professi
     }
   }
   
+  // Format CNPJ for display
+  const displayCNPJ = (cnpj: string) => {
+    if (!cnpj) return '-'
+    return formatCNPJ(cnpj)
+  }
+  
+  // Format phone for display
+  const displayPhone = (phone: string) => {
+    if (!phone) return '-'
+    return formatPhone(phone)
+  }
+  
   return (
     <div className="bg-white shadow rounded-lg p-6">
       <div className="flex flex-col md:flex-row justify-between mb-6 items-center space-y-4 md:space-y-0">
@@ -140,6 +153,7 @@ export default function ProfessionalsList({ onEdit, onDelete, onView }: Professi
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Nome</th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Telefone</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">CNPJ</th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Especialidade</th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Função</th>
                   <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Ações</th>
@@ -151,7 +165,8 @@ export default function ProfessionalsList({ onEdit, onDelete, onView }: Professi
                     <tr key={professional.id} className="hover:bg-gray-50">
                       <td className="px-4 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{professional.name}</td>
                       <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500">{professional.email}</td>
-                      <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500">{professional.phone || '-'}</td>
+                      <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500">{displayPhone(professional.phone)}</td>
+                      <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500">{displayCNPJ(professional.cnpj)}</td>
                       <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500">{professional.specialty || '-'}</td>
                       <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500">{formatRole(professional.user.role)}</td>
                       <td className="px-4 py-4 whitespace-nowrap text-right text-sm font-medium">
