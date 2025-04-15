@@ -125,43 +125,79 @@ export async function POST(req: NextRequest) {
     }
     
     // Check for conflicting appointments
+    console.log('Checking for conflicts with data:', {
+      date: data.date,
+      professionalId: data.professionalId,
+      startTime: data.startTime,
+      endTime: data.endTime,
+      status: data.status
+    })
+
     const existingAppointment = await db.appointment.findFirst({
       where: {
-        date: data.date,
-        professionalId: data.professionalId,
         OR: [
           {
-            // Check if new appointment starts during an existing appointment
+            // Check for time conflicts with the same professional
             AND: [
-              { startTime: { lte: data.startTime } },
-              { endTime: { gt: data.startTime } }
+              { date: data.date },
+              { professionalId: data.professionalId },
+              { status: { notIn: ['CANCELLED', 'NO_SHOW'] } },
+              {
+                OR: [
+                  {
+                    // Check if new appointment overlaps with existing appointment
+                    AND: [
+                      { startTime: { lt: data.endTime } },
+                      { endTime: { gt: data.startTime } }
+                    ]
+                  }
+                ]
+              }
             ]
           },
           {
-            // Check if new appointment ends during an existing appointment
+            // Check if patient already has an appointment on this day
             AND: [
-              { startTime: { lt: data.endTime } },
-              { endTime: { gte: data.endTime } }
+              { date: data.date },
+              { patientId: data.patientId },
+              { status: { notIn: ['CANCELLED', 'NO_SHOW'] } },
+              { id: { not: data.id } } // Exclude current appointment if updating
             ]
           },
           {
-            // Check if new appointment fully encloses an existing appointment
+            // Check if trying to set a new appointment as IN_PROGRESS when patient already has one
             AND: [
-              { startTime: { gte: data.startTime } },
-              { endTime: { lte: data.endTime } }
+              { patientId: data.patientId },
+              { status: 'IN_PROGRESS' },
+              { id: { not: data.id } } // Exclude current appointment if updating
             ]
           }
-        ],
-        status: {
-          notIn: ['CANCELLED', 'NO_SHOW']
-        }
+        ]
       }
     })
-    
+
     if (existingAppointment) {
-      return NextResponse.json({ 
-        error: 'Conflito de horário: já existe uma consulta agendada para este profissional neste horário'
-      }, { status: 409 })
+      if (existingAppointment.patientId === data.patientId && 
+          existingAppointment.status === 'IN_PROGRESS' && 
+          data.status === 'IN_PROGRESS') {
+        return NextResponse.json({ 
+          error: 'Este paciente já possui uma consulta em andamento. Não é possível iniciar uma nova consulta até que a atual seja finalizada.'
+        }, { status: 409 })
+      }
+      
+      if (existingAppointment.patientId === data.patientId && 
+          existingAppointment.date === data.date) {
+        return NextResponse.json({ 
+          error: 'Este paciente já possui uma consulta agendada para este dia. Não é possível agendar mais de uma consulta por dia para o mesmo paciente.'
+        }, { status: 409 })
+      }
+      
+      // Only show time conflict error if the existing appointment is not cancelled or no-show
+      if (existingAppointment.status !== 'CANCELLED' && existingAppointment.status !== 'NO_SHOW') {
+        return NextResponse.json({ 
+          error: 'Conflito de horário: já existe uma consulta agendada para este profissional neste horário'
+        }, { status: 409 })
+      }
     }
     
     // Create appointment
@@ -223,45 +259,72 @@ export async function PUT(req: NextRequest) {
       }
     }
     
-    // Check for conflicting appointments (excluding the current one)
+    // Check for conflicting appointments
     const existingAppointment = await db.appointment.findFirst({
       where: {
-        id: { not: id },
-        date: data.date,
-        professionalId: data.professionalId,
         OR: [
           {
-            // Check if updated appointment starts during an existing appointment
+            // Check for time conflicts with the same professional
             AND: [
-              { startTime: { lte: data.startTime } },
-              { endTime: { gt: data.startTime } }
+              { date: data.date },
+              { professionalId: data.professionalId },
+              { status: { notIn: ['CANCELLED', 'NO_SHOW'] } },
+              {
+                OR: [
+                  {
+                    // Check if new appointment overlaps with existing appointment
+                    AND: [
+                      { startTime: { lt: data.endTime } },
+                      { endTime: { gt: data.startTime } }
+                    ]
+                  }
+                ]
+              }
             ]
           },
           {
-            // Check if updated appointment ends during an existing appointment
+            // Check if patient already has an appointment on this day
             AND: [
-              { startTime: { lt: data.endTime } },
-              { endTime: { gte: data.endTime } }
+              { date: data.date },
+              { patientId: data.patientId },
+              { status: { notIn: ['CANCELLED', 'NO_SHOW'] } },
+              { id: { not: id } } // Exclude current appointment
             ]
           },
           {
-            // Check if updated appointment fully encloses an existing appointment
+            // Check if trying to set a new appointment as IN_PROGRESS when patient already has one
             AND: [
-              { startTime: { gte: data.startTime } },
-              { endTime: { lte: data.endTime } }
+              { patientId: data.patientId },
+              { status: 'IN_PROGRESS' },
+              { id: { not: id } } // Exclude current appointment
             ]
           }
-        ],
-        status: {
-          notIn: ['CANCELLED', 'NO_SHOW']
-        }
+        ]
       }
     })
     
     if (existingAppointment) {
-      return NextResponse.json({ 
-        error: 'Conflito de horário: já existe uma consulta agendada para este profissional neste horário'
-      }, { status: 409 })
+      if (existingAppointment.patientId === data.patientId && 
+          existingAppointment.status === 'IN_PROGRESS' && 
+          data.status === 'IN_PROGRESS') {
+        return NextResponse.json({ 
+          error: 'Este paciente já possui uma consulta em andamento. Não é possível iniciar uma nova consulta até que a atual seja finalizada.'
+        }, { status: 409 })
+      }
+      
+      if (existingAppointment.patientId === data.patientId && 
+          existingAppointment.date === data.date) {
+        return NextResponse.json({ 
+          error: 'Este paciente já possui uma consulta agendada para este dia. Não é possível agendar mais de uma consulta por dia para o mesmo paciente.'
+        }, { status: 409 })
+      }
+      
+      // Only show time conflict error if the existing appointment is not cancelled or no-show
+      if (existingAppointment.status !== 'CANCELLED' && existingAppointment.status !== 'NO_SHOW') {
+        return NextResponse.json({ 
+          error: 'Conflito de horário: já existe uma consulta agendada para este profissional neste horário'
+        }, { status: 409 })
+      }
     }
     
     // Update appointment

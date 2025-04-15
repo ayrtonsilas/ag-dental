@@ -24,6 +24,7 @@ export default function AppointmentsPage() {
     treatment: ''
   })
   const [selectedAppointment, setSelectedAppointment] = useState<Appointment | null>(null)
+  const [availableTimeSlots, setAvailableTimeSlots] = useState<string[]>([])
 
   // Load appointments on mount
   useEffect(() => {
@@ -32,17 +33,52 @@ export default function AppointmentsPage() {
     fetchProfessionals()
   }, [selectedDate])
   
+  // Load appointments and calculate available time slots when date or professional changes
+  useEffect(() => {
+    if (selectedDate) {
+      fetchAppointments()
+    }
+  }, [selectedDate])
+
+  // Calculate available time slots when appointments change
+  useEffect(() => {
+    if (appointments.length > 0 && formData.professionalId) {
+      calculateAvailableTimeSlots()
+    } else if (formData.professionalId) {
+      // If no appointments but we have a professional selected, show all time slots
+      setAvailableTimeSlots(generateTimeSlots())
+    } else {
+      setAvailableTimeSlots([])
+    }
+  }, [appointments, formData.professionalId])
+
   // Update form date when selected date changes
   useEffect(() => {
     setFormData(prev => ({ ...prev, date: selectedDate }))
   }, [selectedDate])
+
+  // Update available time slots when professional changes
+  useEffect(() => {
+    if (formData.professionalId) {
+      calculateAvailableTimeSlots()
+    } else {
+      setAvailableTimeSlots([])
+    }
+  }, [formData.professionalId])
   
   // Fetch appointments for the selected date
   const fetchAppointments = async () => {
     try {
       // Construct the query params
       const params = new URLSearchParams()
-      params.append('date', selectedDate)
+      const startDate = new Date(selectedDate)
+      startDate.setDate(startDate.getDate() - 7) // Get appointments from 7 days before
+      const endDate = new Date(selectedDate)
+      endDate.setDate(endDate.getDate() + 7) // Get appointments up to 7 days after
+      
+      params.append('startDate', startDate.toISOString().split('T')[0])
+      params.append('endDate', endDate.toISOString().split('T')[0])
+      params.append('pageSize', '100') // Increase page size to show more appointments
       
       // Attempt to fetch from the API
       try {
@@ -54,40 +90,12 @@ export default function AppointmentsPage() {
           return
         }
       } catch (apiError) {
-        console.error('Error fetching from API, falling back to mock data:', apiError)
+        console.error('Error fetching from API:', apiError)
+        throw apiError // Don't fall back to mock data, let the error be visible
       }
-      
-      // Fallback to mock data if API call fails
-      setAppointments([
-        {
-          id: '1',
-          patientId: 'patient1',
-          professionalId: 'professional1',
-          date: selectedDate,
-          startTime: '09:00',
-          endTime: '09:30',
-          status: 'SCHEDULED' as AppointmentStatus,
-          createdAt: selectedDate,
-          updatedAt: selectedDate,
-          patient: { id: 'patient1', name: 'João Silva', phone: '11999999999' },
-          professional: { id: 'professional1', name: 'Dra. Maria Santos' }
-        },
-        {
-          id: '2',
-          patientId: 'patient2',
-          professionalId: 'professional2',
-          date: selectedDate,
-          startTime: '10:00',
-          endTime: '10:30',
-          status: 'CONFIRMED' as AppointmentStatus,
-          createdAt: selectedDate,
-          updatedAt: selectedDate,
-          patient: { id: 'patient2', name: 'Ana Oliveira', phone: '11988888888' },
-          professional: { id: 'professional2', name: 'Dr. Carlos Mendes' }
-        }
-      ])
     } catch (error) {
       console.error('Error fetching appointments:', error)
+      setError('Erro ao carregar consultas. Por favor, tente novamente.')
     }
   }
   
@@ -166,7 +174,38 @@ export default function AppointmentsPage() {
   
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target
-    setFormData(prev => ({ ...prev, [name]: value }))
+    setFormData(prev => {
+      const newData = { ...prev, [name]: value }
+      
+      // If start time changes, ensure end time is after it
+      if (name === 'startTime' && value && newData.endTime && value >= newData.endTime) {
+        // Find the next available time slot
+        const startIndex = availableTimeSlots.indexOf(value)
+        if (startIndex !== -1 && startIndex < availableTimeSlots.length - 1) {
+          newData.endTime = availableTimeSlots[startIndex + 1]
+        }
+      }
+      
+      // If end time changes, ensure it's after start time
+      if (name === 'endTime' && value && newData.startTime && value <= newData.startTime) {
+        // Find the next available time slot after start time
+        const startIndex = availableTimeSlots.indexOf(newData.startTime)
+        if (startIndex !== -1 && startIndex < availableTimeSlots.length - 1) {
+          newData.endTime = availableTimeSlots[startIndex + 1]
+        }
+      }
+      
+      return newData
+    })
+    
+    // Recalculate available time slots when professional changes
+    if (name === 'professionalId') {
+      if (value) {
+        calculateAvailableTimeSlots()
+      } else {
+        setAvailableTimeSlots([])
+      }
+    }
   }
   
   const handleSubmit = async (e: React.FormEvent) => {
@@ -200,6 +239,9 @@ export default function AppointmentsPage() {
         
         if (!response.ok) {
           const errorData = await response.json()
+          if (response.status === 409) {
+            throw new Error(errorData.error)
+          }
           throw new Error(errorData.error || `Failed to ${selectedAppointment ? 'update' : 'create'} appointment`)
         }
         
@@ -207,15 +249,7 @@ export default function AppointmentsPage() {
         result = data.appointment
       } catch (apiError) {
         console.error('API error:', apiError)
-        // If API call fails, create a mock appointment for UI
-        result = {
-          id: selectedAppointment?.id || `new-${Date.now()}`,
-          ...formData,
-          createdAt: selectedDate,
-          updatedAt: selectedDate,
-          patient: patients.find(p => p.id === formData.patientId) as { id: string; name: string; phone: string },
-          professional: professionals.find(p => p.id === formData.professionalId) as { id: string; name: string }
-        }
+        throw apiError
       }
       
       // Update the appointments list
@@ -251,18 +285,55 @@ export default function AppointmentsPage() {
   const generateTimeSlots = () => {
     const slots = []
     for (let hour = 8; hour < 18; hour++) {
-      const formattedHour = hour.toString().padStart(2, '0')
-      slots.push(`${formattedHour}:00`)
-      slots.push(`${formattedHour}:30`)
+      for (let minute = 0; minute < 60; minute += 30) {
+        const time = `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`
+        slots.push(time)
+      }
     }
     return slots
   }
-  
-  const timeSlots = generateTimeSlots()
+
+  // Calculate available time slots based on existing appointments
+  const calculateAvailableTimeSlots = () => {
+    const allSlots = generateTimeSlots()
+    const bookedSlots = new Set()
+
+    // Get appointments for the selected professional on the selected date
+    const professionalAppointments = appointments.filter(
+      app => app.professionalId === formData.professionalId && 
+             app.date === selectedDate &&
+             // Exclude the current appointment if we're editing
+             (!selectedAppointment || app.id !== selectedAppointment.id)
+    )
+
+    // Mark booked time slots
+    professionalAppointments.forEach(app => {
+      if (app.status !== 'CANCELLED' && app.status !== 'NO_SHOW') {
+        const startTime = app.startTime
+        const endTime = app.endTime
+        
+        // Convert times to minutes for easier comparison
+        const startMinutes = parseInt(startTime.split(':')[0]) * 60 + parseInt(startTime.split(':')[1])
+        const endMinutes = parseInt(endTime.split(':')[0]) * 60 + parseInt(endTime.split(':')[1])
+        
+        // Mark all slots between start and end time as booked
+        for (let minutes = startMinutes; minutes < endMinutes; minutes += 30) {
+          const hour = Math.floor(minutes / 60)
+          const minute = minutes % 60
+          const time = `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`
+          bookedSlots.add(time)
+        }
+      }
+    })
+
+    // Filter out booked slots
+    const availableSlots = allSlots.filter(slot => !bookedSlots.has(slot))
+    setAvailableTimeSlots(availableSlots)
+  }
   
   // Handle calendar appointment click
   const handleAppointmentClick = (appointment: Appointment) => {
-    // Set up form for editing
+    setSelectedAppointment(appointment)
     setFormData({
       patientId: appointment.patientId,
       professionalId: appointment.professionalId,
@@ -273,19 +344,25 @@ export default function AppointmentsPage() {
       notes: appointment.notes || '',
       treatment: appointment.treatment || ''
     })
-    setSelectedAppointment(appointment)
     setShowModal(true)
+    // Recalculate available time slots after setting the form data
+    calculateAvailableTimeSlots()
   }
   
   // Handle creating appointment from calendar click
   const handleCalendarAddClick = (date: string, hour: string) => {
     setSelectedDate(date)
-    setFormData(prev => ({
-      ...prev,
-      date,
+    setSelectedAppointment(null)
+    setFormData({
+      patientId: '',
+      professionalId: '',
+      date: date,
       startTime: hour,
-      endTime: hour === '17:30' ? '18:00' : hour.split(':')[0] + ':' + (parseInt(hour.split(':')[1]) + 30).toString().padStart(2, '0')
-    }))
+      endTime: '', // Will be set by handleChange when startTime is selected
+      status: 'SCHEDULED' as AppointmentStatus,
+      notes: '',
+      treatment: ''
+    })
     setShowModal(true)
   }
   
@@ -422,34 +499,44 @@ export default function AppointmentsPage() {
                   </div>
                   
                   <div className="space-y-2">
-                    <label className="block text-sm font-medium text-gray-700">
-                      Início <span className="text-red-500">*</span>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Horário de Início
                     </label>
-                    <select 
+                    <select
                       name="startTime"
                       value={formData.startTime}
                       onChange={handleChange}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                      required
                     >
-                      {timeSlots.map(time => (
-                        <option key={time} value={time}>{time}</option>
+                      <option value="">Selecione um horário</option>
+                      {availableTimeSlots.map(time => (
+                        <option key={time} value={time}>
+                          {time}
+                        </option>
                       ))}
                     </select>
                   </div>
                   
                   <div className="space-y-2">
-                    <label className="block text-sm font-medium text-gray-700">
-                      Término <span className="text-red-500">*</span>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Horário de Término
                     </label>
-                    <select 
+                    <select
                       name="endTime"
                       value={formData.endTime}
                       onChange={handleChange}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                      required
                     >
-                      {timeSlots.filter(time => time > formData.startTime).map(time => (
-                        <option key={time} value={time}>{time}</option>
-                      ))}
+                      <option value="">Selecione um horário</option>
+                      {availableTimeSlots
+                        .filter(time => !formData.startTime || time > formData.startTime)
+                        .map(time => (
+                          <option key={time} value={time}>
+                            {time}
+                          </option>
+                        ))}
                     </select>
                   </div>
                 </div>
