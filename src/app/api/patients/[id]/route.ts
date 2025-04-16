@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { db } from '@/lib/db'
 import { withAuth } from '@/lib/auth'
+import { PatientService } from '@/services/patient.service'
 
 interface Context {
   params: {
@@ -13,18 +13,7 @@ export async function GET(req: NextRequest, context: Context) {
   return withAuth(req, async (req, user) => {
     try {
       const { id } = context.params
-
-      const patient = await db.patient.findUnique({
-        where: {
-          id,
-          companyId: user.companyId as string
-        }
-      })
-
-      if (!patient) {
-        return NextResponse.json({ error: 'Paciente não encontrado' }, { status: 404 })
-      }
-
+      const patient = await PatientService.getPatientById(id, user.companyId as string)
       return NextResponse.json(patient)
     } catch (error) {
       console.error('Error fetching patient:', error)
@@ -42,25 +31,7 @@ export async function PUT(req: NextRequest, context: Context) {
     try {
       const { id } = context.params
       const data = await req.json()
-
-      // Verify patient exists and belongs to user's company
-      const existingPatient = await db.patient.findUnique({
-        where: {
-          id,
-          companyId: user.companyId as string
-        }
-      })
-
-      if (!existingPatient) {
-        return NextResponse.json({ error: 'Paciente não encontrado' }, { status: 404 })
-      }
-
-      // Update patient
-      const updatedPatient = await db.patient.update({
-        where: { id },
-        data
-      })
-
+      const updatedPatient = await PatientService.updatePatient(id, data, user.companyId as string)
       return NextResponse.json(updatedPatient)
     } catch (error) {
       console.error('Error updating patient:', error)
@@ -77,24 +48,7 @@ export async function DELETE(req: NextRequest, context: Context) {
   return withAuth(req, async (req, user) => {
     try {
       const { id } = context.params
-
-      // Verify patient exists and belongs to user's company
-      const existingPatient = await db.patient.findUnique({
-        where: {
-          id,
-          companyId: user.companyId as string
-        }
-      })
-
-      if (!existingPatient) {
-        return NextResponse.json({ error: 'Paciente não encontrado' }, { status: 404 })
-      }
-
-      // Delete patient
-      await db.patient.delete({
-        where: { id }
-      })
-
+      await PatientService.deletePatient(id, user.companyId as string)
       return NextResponse.json({ success: true })
     } catch (error) {
       console.error('Error deleting patient:', error)

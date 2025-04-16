@@ -3,32 +3,13 @@
 import { useRouter } from 'next/navigation'
 import PatientForm from '@/components/patients/PatientForm'
 import { useNotification } from '@/components/Notification'
-
-interface Patient {
-  id: string
-  name: string
-  email: string
-  phone: string
-  documentNumber: string
-  dateOfBirth: string | null
-  gender: string
-  address: string
-  healthInsurance: string
-  healthInsuranceNumber: string
-  observations: string
-  user?: {
-    id: string
-    name: string
-    email: string
-    role: string
-  }
-}
+import { PatientFormData } from '@/types'
 
 export default function NewPatientPage() {
   const router = useRouter()
   const { showNotification } = useNotification()
   
-  const handleSubmit = async (data: Omit<Patient, 'id' | 'user'>) => {
+  const handleSubmit = async (data: PatientFormData) => {
     try {
       const response = await fetch('/api/patients', {
         method: 'POST',
@@ -39,14 +20,18 @@ export default function NewPatientPage() {
       })
       
       if (!response.ok) {
-        throw new Error('Failed to create patient')
+        const error = await response.json()
+        throw new Error(error.error || 'Failed to create patient')
       }
       
       showNotification('Paciente criado com sucesso!', 'success')
       router.push('/dashboard/patients')
     } catch (error) {
       console.error('Error creating patient:', error)
-      showNotification('Erro ao criar paciente. Tente novamente.', 'error')
+      showNotification(
+        error instanceof Error ? error.message : 'Erro ao criar paciente. Tente novamente.',
+        'error'
+      )
     }
   }
   

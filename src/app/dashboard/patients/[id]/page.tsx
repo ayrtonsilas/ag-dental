@@ -5,23 +5,15 @@ import { useRouter } from 'next/navigation'
 import PatientForm from '@/components/patients/PatientForm'
 import { useNotification } from '@/components/Notification'
 import { useParams } from 'next/navigation'
+import { Patient, PatientFormData } from '@/types'
 
-// Import the Patient interface from the central types file
-import { Patient as PatientType, PatientFormData } from '@/types'
-
-interface PageProps {
-  params: {
-    id: string
-  }
-}
-
-export default function PatientDetailPage({ params }: PageProps) {
-  // Use the useParams hook, which is the recommended way in newer Next.js versions
-  const routeParams = useParams<{ id: string }>()
-  const id = routeParams.id || params.id // Fallback to props params if needed
+export default function PatientDetailPage() {
   const router = useRouter()
   const { showNotification } = useNotification()
-  const [patient, setPatient] = useState<PatientType | null>(null)
+  const params = useParams()
+  const id = params.id as string
+  
+  const [patient, setPatient] = useState<Patient | null>(null)
   const [isEditing, setIsEditing] = useState(false)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -29,20 +21,19 @@ export default function PatientDetailPage({ params }: PageProps) {
   useEffect(() => {
     const fetchPatient = async () => {
       try {
+        setLoading(true)
         const response = await fetch(`/api/patients/${id}`)
         
         if (!response.ok) {
-          if (response.status === 404) {
-            throw new Error('Patient not found')
-          }
-          throw new Error('Failed to fetch patient data')
+          const error = await response.json()
+          throw new Error(error.error || 'Failed to fetch patient')
         }
         
         const data = await response.json()
         setPatient(data)
-      } catch (err) {
-        setError('Erro ao carregar paciente. Por favor, tente novamente.')
-        console.error(err)
+      } catch (error) {
+        console.error('Error fetching patient:', error)
+        setError(error instanceof Error ? error.message : 'Erro ao carregar paciente')
       } finally {
         setLoading(false)
       }
@@ -51,50 +42,19 @@ export default function PatientDetailPage({ params }: PageProps) {
     fetchPatient()
   }, [id])
   
-  const handleEdit = () => {
-    setIsEditing(true)
-  }
-  
-  const handleDelete = async () => {
-    if (!window.confirm('Tem certeza que deseja excluir este paciente?')) {
-      return
-    }
-    
-    try {
-      const response = await fetch(`/api/patients/${id}`, {
-        method: 'DELETE'
-      })
-      
-      if (!response.ok) {
-        throw new Error('Failed to delete patient')
-      }
-      
-      showNotification('Paciente excluído com sucesso!', 'success')
-      router.push('/dashboard/patients')
-    } catch (error) {
-      console.error('Error deleting patient:', error)
-      showNotification('Erro ao excluir paciente. Tente novamente.', 'error')
-    }
-  }
-  
   const handleSubmit = async (data: PatientFormData) => {
     try {
-      // Ensure isFirstVisit is explicitly a boolean
-      const patientData = {
-        ...data,
-        isFirstVisit: Boolean(data.isFirstVisit)
-      }
-
       const response = await fetch(`/api/patients/${id}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify(patientData)
+        body: JSON.stringify(data)
       })
       
       if (!response.ok) {
-        throw new Error('Failed to update patient')
+        const error = await response.json()
+        throw new Error(error.error || 'Failed to update patient')
       }
       
       const updatedPatient = await response.json()
@@ -103,7 +63,10 @@ export default function PatientDetailPage({ params }: PageProps) {
       showNotification('Paciente atualizado com sucesso!', 'success')
     } catch (error) {
       console.error('Error updating patient:', error)
-      showNotification('Erro ao atualizar paciente. Tente novamente.', 'error')
+      showNotification(
+        error instanceof Error ? error.message : 'Erro ao atualizar paciente. Tente novamente.',
+        'error'
+      )
     }
   }
   
@@ -114,7 +77,6 @@ export default function PatientDetailPage({ params }: PageProps) {
   // Format date for display
   const formatDate = (dateString: string | null) => {
     if (!dateString) return '-'
-    
     const date = new Date(dateString)
     return date.toLocaleDateString('pt-BR')
   }
@@ -140,15 +102,20 @@ export default function PatientDetailPage({ params }: PageProps) {
     )
   }
   
-  if (error || !patient) {
+  if (error) {
     return (
       <div className="container mx-auto px-4 py-8">
-        <div className="bg-red-50 text-red-600 p-4 rounded-lg">
-          <h2 className="text-lg font-semibold mb-2">Erro</h2>
-          <p>{error || 'Paciente não encontrado'}</p>
-          <button 
+        <div className="text-center py-10">
+          <div className="text-red-500 mb-4">
+            <svg className="w-12 h-12 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
+            </svg>
+          </div>
+          <h2 className="text-xl font-semibold text-gray-900 mb-2">Erro ao carregar paciente</h2>
+          <p className="text-gray-600 mb-4">{error}</p>
+          <button
             onClick={() => router.push('/dashboard/patients')}
-            className="mt-4 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+            className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
           >
             Voltar para lista de pacientes
           </button>
@@ -157,33 +124,20 @@ export default function PatientDetailPage({ params }: PageProps) {
     )
   }
   
+  if (!patient) {
+    return null
+  }
+  
   return (
     <div className="container mx-auto px-4 py-8">
-      <div className="flex justify-between items-center mb-8">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">{patient.name}</h1>
-          <p className="text-gray-600">Detalhes do paciente</p>
-        </div>
-        <div className="space-x-2">
-          <button
-            onClick={() => router.push('/dashboard/patients')}
-            className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50"
-          >
-            Voltar
-          </button>
-          <button
-            onClick={handleEdit}
-            className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
-          >
-            Editar
-          </button>
-          <button
-            onClick={handleDelete}
-            className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700"
-          >
-            Excluir
-          </button>
-        </div>
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="text-2xl font-bold text-gray-900">Detalhes do Paciente</h1>
+        <button
+          onClick={() => setIsEditing(!isEditing)}
+          className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+        >
+          {isEditing ? 'Cancelar Edição' : 'Editar Paciente'}
+        </button>
       </div>
       
       {isEditing ? (
@@ -231,17 +185,21 @@ export default function PatientDetailPage({ params }: PageProps) {
                 <dd className="mt-1 text-sm text-gray-900">{patient.address || '-'}</dd>
               </div>
               <div>
-                <dt className="text-sm font-medium text-gray-500">Plano de Saúde</dt>
+                <dt className="text-sm font-medium text-gray-500">Convênio</dt>
                 <dd className="mt-1 text-sm text-gray-900">{patient.healthInsurance || '-'}</dd>
               </div>
               <div>
-                <dt className="text-sm font-medium text-gray-500">Número da Carteirinha</dt>
+                <dt className="text-sm font-medium text-gray-500">Número do Convênio</dt>
                 <dd className="mt-1 text-sm text-gray-900">{patient.healthInsuranceNumber || '-'}</dd>
+              </div>
+              <div>
+                <dt className="text-sm font-medium text-gray-500">Observações</dt>
+                <dd className="mt-1 text-sm text-gray-900">{patient.observations || '-'}</dd>
               </div>
               <div>
                 <dt className="text-sm font-medium text-gray-500">Primeira Consulta</dt>
                 <dd className="mt-1 text-sm text-gray-900">
-                  {patient.isFirstVisit === true ? (
+                  {patient.isFirstVisit ? (
                     <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
                       Sim
                     </span>
@@ -251,10 +209,6 @@ export default function PatientDetailPage({ params }: PageProps) {
                     </span>
                   )}
                 </dd>
-              </div>
-              <div className="md:col-span-2">
-                <dt className="text-sm font-medium text-gray-500">Observações</dt>
-                <dd className="mt-1 text-sm text-gray-900 whitespace-pre-line">{patient.observations || '-'}</dd>
               </div>
             </dl>
           </div>

@@ -34,26 +34,24 @@ export default function PatientsPage() {
       })
       
       if (!response.ok) {
-        throw new Error('Failed to delete patient')
+        const error = await response.json()
+        throw new Error(error.error || 'Failed to delete patient')
       }
       
       showNotification('Paciente excluído com sucesso!', 'success')
       window.location.reload()
     } catch (error) {
       console.error('Error deleting patient:', error)
-      showNotification('Erro ao excluir paciente. Tente novamente.', 'error')
+      showNotification(
+        error instanceof Error ? error.message : 'Erro ao excluir paciente. Tente novamente.',
+        'error'
+      )
     }
   }
   
   const handleSubmit = async (data: PatientFormData) => {
     try {
       setIsSubmitting(true)
-      
-      // Ensure all required fields are present and properly typed
-      const patientData = {
-        ...data,
-        isFirstVisit: data.isFirstVisit === undefined ? false : data.isFirstVisit
-      }
       
       const url = selectedPatient 
         ? `/api/patients/${selectedPatient.id}` 
@@ -66,11 +64,12 @@ export default function PatientsPage() {
         headers: {
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify(patientData)
+        body: JSON.stringify(data)
       })
       
       if (!response.ok) {
-        throw new Error(`Failed to ${selectedPatient ? 'update' : 'create'} patient`)
+        const error = await response.json()
+        throw new Error(error.error || `Failed to ${selectedPatient ? 'update' : 'create'} patient`)
       }
       
       setIsEditing(false)
@@ -79,7 +78,10 @@ export default function PatientsPage() {
       window.location.reload()
     } catch (error) {
       console.error('Error submitting patient:', error)
-      showNotification(`Erro ao ${selectedPatient ? 'atualizar' : 'criar'} paciente. Tente novamente.`, 'error')
+      showNotification(
+        error instanceof Error ? error.message : `Erro ao ${selectedPatient ? 'atualizar' : 'criar'} paciente. Tente novamente.`,
+        'error'
+      )
     } finally {
       setIsSubmitting(false)
     }
@@ -92,27 +94,18 @@ export default function PatientsPage() {
   
   return (
     <div className="container mx-auto px-4 py-8">
-      <div className="mb-8 flex justify-between items-center">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Pacientes</h1>
-          <p className="text-gray-600">Gerenciamento de pacientes da clínica</p>
-        </div>
-        
-        {!isEditing && (
-          <button
-            onClick={() => setIsEditing(true)}
-            className="px-4 py-2 bg-green-600 text-white rounded-lg flex items-center hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500"
-          >
-            <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4"></path>
-            </svg>
-            Novo Paciente
-          </button>
-        )}
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="text-2xl font-bold text-gray-900">Pacientes</h1>
+        <button
+          onClick={() => setIsEditing(true)}
+          className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+        >
+          Novo Paciente
+        </button>
       </div>
       
       {isEditing ? (
-        <div className="bg-white shadow rounded-lg p-6">
+        <div className="bg-white shadow rounded-lg p-6 mb-6">
           <h2 className="text-xl font-semibold text-gray-800 mb-6">
             {selectedPatient ? 'Editar Paciente' : 'Novo Paciente'}
           </h2>

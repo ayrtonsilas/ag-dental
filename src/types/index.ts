@@ -52,4 +52,15 @@ export interface Appointment {
     name: string
     specialty?: string
   }
+}
+
+export type ProfessionalFormData = {
+  name: string
+  email: string
+  phone: string
+  documentNumber: string
+  specialty: string
+  registrationNumber: string
+  isActive: boolean
+  userId: string
 } 
