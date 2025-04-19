@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import Pagination from '@/components/Pagination'
 import { formatPhone, formatCNPJ } from '@/lib/masks'
 
@@ -40,7 +40,7 @@ export default function ProfessionalsList({ onEdit, onDelete, onView }: Professi
   const [totalPages, setTotalPages] = useState(0)
   const [totalItems, setTotalItems] = useState(0)
   
-  const fetchProfessionals = async () => {
+  const fetchProfessionals = useCallback(async () => {
     setLoading(true)
     setError(null)
     
@@ -67,11 +67,11 @@ export default function ProfessionalsList({ onEdit, onDelete, onView }: Professi
     } finally {
       setLoading(false)
     }
-  }
+  }, [page, pageSize, search])
   
   useEffect(() => {
     fetchProfessionals()
-  }, [page, pageSize, search])
+  }, [fetchProfessionals])
   
   const handlePageChange = (newPage: number) => {
     setPage(newPage)

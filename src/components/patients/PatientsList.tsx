@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import Pagination from '@/components/Pagination'
 import { formatPhone } from '@/lib/masks'
 import { Patient } from '@/types'
@@ -23,7 +23,7 @@ export default function PatientsList({ onEdit, onDelete, onView }: PatientsListP
   const [totalPages, setTotalPages] = useState(0)
   const [totalItems, setTotalItems] = useState(0)
   
-  const fetchPatients = async () => {
+  const fetchPatients = useCallback(async () => {
     setLoading(true)
     setError(null)
     
@@ -50,11 +50,11 @@ export default function PatientsList({ onEdit, onDelete, onView }: PatientsListP
     } finally {
       setLoading(false)
     }
-  }
+  }, [page, pageSize, search])
   
   useEffect(() => {
     fetchPatients()
-  }, [page, pageSize, search])
+  }, [fetchPatients])
   
   const handlePageChange = (newPage: number) => {
     setPage(newPage)

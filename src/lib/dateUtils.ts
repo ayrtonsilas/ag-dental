@@ -1,18 +1,19 @@
+import { format, parse, isValid } from 'date-fns'
+import { ptBR } from 'date-fns/locale'
+
 /**
  * Formats a date string to a human-readable format (DD/MM/YYYY)
  * @param dateString The ISO date string to format
  * @returns Formatted date string
  */
-export function formatDate(dateString: string): string {
-  if (!dateString) return '';
+export function formatDate(date: Date | string | null): string {
+  if (!date) return ''
   
-  const date = new Date(dateString);
+  const parsedDate = typeof date === 'string' ? new Date(date) : date
   
-  return date.toLocaleDateString('pt-BR', {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric'
-  });
+  if (!isValid(parsedDate)) return ''
+  
+  return format(parsedDate, 'dd/MM/yyyy', { locale: ptBR })
 }
 
 /**
@@ -20,26 +21,14 @@ export function formatDate(dateString: string): string {
  * @param timeString The time string to format (HH:MM)
  * @returns Formatted time string
  */
-export function formatTime(timeString: string): string {
-  if (!timeString) return '';
+export function formatTime(date: Date | string | null): string {
+  if (!date) return ''
   
-  // If it's already in HH:MM format, just return it
-  if (/^\d{2}:\d{2}(:\d{2})?$/.test(timeString)) {
-    // Return only HH:MM if it contains seconds
-    return timeString.substring(0, 5);
-  }
+  const parsedDate = typeof date === 'string' ? new Date(date) : date
   
-  // If it's an ISO date with time
-  if (timeString.includes('T')) {
-    const date = new Date(timeString);
-    return date.toLocaleTimeString('pt-BR', {
-      hour: '2-digit',
-      minute: '2-digit',
-      hour12: false
-    });
-  }
+  if (!isValid(parsedDate)) return ''
   
-  return timeString;
+  return format(parsedDate, 'HH:mm', { locale: ptBR })
 }
 
 /**
@@ -48,7 +37,7 @@ export function formatTime(timeString: string): string {
  * @returns YYYY-MM-DD formatted string
  */
 export function getInputDateFormat(date: Date): string {
-  return date.toISOString().split('T')[0];
+  return date.toISOString().split('T')[0]
 }
 
 /**
@@ -57,20 +46,20 @@ export function getInputDateFormat(date: Date): string {
  * @returns Array of dates for the week
  */
 export function getWeekDates(date: Date): Date[] {
-  const day = date.getDay(); // 0 (Sunday) to 6 (Saturday)
-  const diff = date.getDate() - day + (day === 0 ? -6 : 1); // Adjust for Monday as first day
+  const day = date.getDay()
+  const diff = date.getDate() - day + (day === 0 ? -6 : 1)
   
-  const monday = new Date(date);
-  monday.setDate(diff);
+  const monday = new Date(date)
+  monday.setDate(diff)
   
-  const weekDates = [];
+  const weekDates = []
   for (let i = 0; i < 7; i++) {
-    const nextDate = new Date(monday);
-    nextDate.setDate(monday.getDate() + i);
-    weekDates.push(nextDate);
+    const nextDate = new Date(monday)
+    nextDate.setDate(monday.getDate() + i)
+    weekDates.push(nextDate)
   }
   
-  return weekDates;
+  return weekDates
 }
 
 /**
@@ -79,35 +68,29 @@ export function getWeekDates(date: Date): Date[] {
  * @returns Array of dates for the month
  */
 export function getMonthDates(date: Date): Date[] {
-  const year = date.getFullYear();
-  const month = date.getMonth();
+  const year = date.getFullYear()
+  const month = date.getMonth()
   
-  // First day of month
-  const firstDay = new Date(year, month, 1);
-  // Last day of month
-  const lastDay = new Date(year, month + 1, 0);
+  const firstDay = new Date(year, month, 1)
+  const lastDay = new Date(year, month + 1, 0)
   
-  // Get the first day of the week of the month
-  const firstDayOfWeek = firstDay.getDay(); // 0 (Sunday) to 6 (Saturday)
+  const firstDayOfWeek = firstDay.getDay()
   
-  // Calculate first calendar date (may be in previous month)
-  const firstCalendarDate = new Date(firstDay);
-  firstCalendarDate.setDate(1 - (firstDayOfWeek === 0 ? 7 : firstDayOfWeek) + 1); // Adjust for Monday as first day
+  const firstCalendarDate = new Date(firstDay)
+  firstCalendarDate.setDate(1 - (firstDayOfWeek === 0 ? 7 : firstDayOfWeek) + 1)
   
-  const dates = [];
-  // Generate 42 dates (6 weeks) to ensure we cover the whole month plus paddings
+  const dates = []
   for (let i = 0; i < 42; i++) {
-    const nextDate = new Date(firstCalendarDate);
-    nextDate.setDate(firstCalendarDate.getDate() + i);
-    dates.push(nextDate);
+    const nextDate = new Date(firstCalendarDate)
+    nextDate.setDate(firstCalendarDate.getDate() + i)
+    dates.push(nextDate)
     
-    // Break if we've gone past the last day of the month and completed the week
     if (nextDate > lastDay && nextDate.getDay() === 0) {
-      break;
+      break
     }
   }
   
-  return dates;
+  return dates
 }
 
 /**
@@ -122,24 +105,127 @@ export function generateTimeSlots(
   endTime: string = '18:00',
   interval: number = 30
 ): string[] {
-  const slots: string[] = [];
+  const slots: string[] = []
   
-  const [startHours, startMinutes] = startTime.split(':').map(Number);
-  const [endHours, endMinutes] = endTime.split(':').map(Number);
+  const [startHours, startMinutes] = startTime.split(':').map(Number)
+  const [endHours, endMinutes] = endTime.split(':').map(Number)
   
-  let currentDate = new Date();
-  currentDate.setHours(startHours, startMinutes, 0);
+  const currentDate = new Date()
+  currentDate.setHours(startHours, startMinutes, 0)
   
-  const endDate = new Date();
-  endDate.setHours(endHours, endMinutes, 0);
+  const endDate = new Date()
+  endDate.setHours(endHours, endMinutes, 0)
   
   while (currentDate <= endDate) {
-    const hours = currentDate.getHours().toString().padStart(2, '0');
-    const minutes = currentDate.getMinutes().toString().padStart(2, '0');
-    slots.push(`${hours}:${minutes}`);
+    const hours = currentDate.getHours().toString().padStart(2, '0')
+    const minutes = currentDate.getMinutes().toString().padStart(2, '0')
+    slots.push(`${hours}:${minutes}`)
     
-    currentDate.setMinutes(currentDate.getMinutes() + interval);
+    currentDate.setMinutes(currentDate.getMinutes() + interval)
   }
   
-  return slots;
+  return slots
+}
+
+export function formatDateTime(date: Date | string | null): string {
+  if (!date) return ''
+  
+  const parsedDate = typeof date === 'string' ? new Date(date) : date
+  
+  if (!isValid(parsedDate)) return ''
+  
+  return format(parsedDate, 'dd/MM/yyyy HH:mm', { locale: ptBR })
+}
+
+export function parseDate(dateString: string): Date | null {
+  if (!dateString) return null
+
+  const parsedDate = parse(dateString, 'dd/MM/yyyy', new Date())
+  
+  return isValid(parsedDate) ? parsedDate : null
+}
+
+export function parseDateTime(dateTimeString: string): Date | null {
+  if (!dateTimeString) return null
+
+  const [dateStr, timeStr] = dateTimeString.split(' ')
+  
+  if (!dateStr || !timeStr) return null
+  
+  const [day, month, year] = dateStr.split('/')
+  const [hours, minutes] = timeStr.split(':')
+  
+  const parsedDate = new Date(
+    parseInt(year),
+    parseInt(month) - 1,
+    parseInt(day),
+    parseInt(hours),
+    parseInt(minutes)
+  )
+  
+  return isValid(parsedDate) ? parsedDate : null
+}
+
+export function getTimeSlots(
+  startTime: string,
+  endTime: string,
+  duration: number
+): string[] {
+  const slots: string[] = []
+  const [startHour, startMinute] = startTime.split(':').map(Number)
+  const [endHour, endMinute] = endTime.split(':').map(Number)
+
+  const startDate = new Date()
+  startDate.setHours(startHour, startMinute, 0)
+
+  const endDate = new Date()
+  endDate.setHours(endHour, endMinute, 0)
+
+  const currentTime = new Date(startDate)
+
+  while (currentTime <= endDate) {
+    slots.push(format(currentTime, 'HH:mm'))
+    currentTime.setMinutes(currentTime.getMinutes() + duration)
+  }
+
+  return slots
+}
+
+export function isTimeSlotAvailable(
+  timeSlot: string,
+  existingAppointments: { startTime: string }[]
+): boolean {
+  return !existingAppointments.some(
+    appointment => appointment.startTime === timeSlot
+  )
+}
+
+export function getAvailableTimeSlots(
+  startTime: string,
+  endTime: string,
+  duration: number,
+  existingAppointments: { startTime: string }[]
+): string[] {
+  const allTimeSlots = getTimeSlots(startTime, endTime, duration)
+  return allTimeSlots.filter(slot =>
+    isTimeSlotAvailable(slot, existingAppointments)
+  )
+}
+
+export function getCurrentWeekDates(): {
+  startDate: Date
+  endDate: Date
+} {
+  const currentDate = new Date()
+  const currentDay = currentDate.getDay()
+  const diff = currentDate.getDate() - currentDay + (currentDay === 0 ? -6 : 1)
+  
+  const startDate = new Date(currentDate.setDate(diff))
+  const endDate = new Date(startDate)
+  endDate.setDate(startDate.getDate() + 6)
+  
+  startDate.setHours(0, 0, 0, 0)
+  endDate.setHours(23, 59, 59, 999)
+  
+  return { startDate, endDate }
 } 

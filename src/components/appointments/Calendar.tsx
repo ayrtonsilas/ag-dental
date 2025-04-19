@@ -5,7 +5,6 @@ import { Appointment, AppointmentStatus } from '@/types'
 import {
   getWeekDates,
   getMonthDates,
-  formatDate,
   formatTime,
   getInputDateFormat
 } from '@/lib/dateUtils'
@@ -95,34 +94,18 @@ export default function Calendar({
   }
   
   // Format date for display
-  const formatDisplayDate = (date: Date) => {
-    return date.toLocaleDateString('pt-BR', {
-      weekday: view === 'month' ? 'short' : 'long',
-      day: 'numeric',
-      month: view === 'day' ? 'long' : 'short'
-    })
-  }
-  
-  // Format header title based on view
   const formatHeaderTitle = () => {
     if (view === 'day') {
       return selectedDate.toLocaleDateString('pt-BR', {
+        weekday: 'long',
         day: 'numeric',
         month: 'long',
         year: 'numeric'
       })
     } else if (view === 'week') {
-      const firstDay = displayDates[0]
-      const lastDay = displayDates[displayDates.length - 1]
-      
-      // If same month
-      if (firstDay.getMonth() === lastDay.getMonth()) {
-        return `${firstDay.getDate()} - ${lastDay.getDate()} de ${firstDay.toLocaleDateString('pt-BR', { month: 'long' })} de ${firstDay.getFullYear()}`
-      } else if (firstDay.getFullYear() === lastDay.getFullYear()) {
-        return `${firstDay.getDate()} de ${firstDay.toLocaleDateString('pt-BR', { month: 'short' })} - ${lastDay.getDate()} de ${lastDay.toLocaleDateString('pt-BR', { month: 'short' })} de ${firstDay.getFullYear()}`
-      } else {
-        return `${firstDay.getDate()} de ${firstDay.toLocaleDateString('pt-BR', { month: 'short' })} de ${firstDay.getFullYear()} - ${lastDay.getDate()} de ${lastDay.toLocaleDateString('pt-BR', { month: 'short' })} de ${lastDay.getFullYear()}`
-      }
+      const start = displayDates[0]
+      const end = displayDates[displayDates.length - 1]
+      return `${start.toLocaleDateString('pt-BR', { day: 'numeric', month: 'long' })} - ${end.toLocaleDateString('pt-BR', { day: 'numeric', month: 'long', year: 'numeric' })}`
     } else {
       return selectedDate.toLocaleDateString('pt-BR', {
         month: 'long',

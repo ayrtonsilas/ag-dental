@@ -71,25 +71,33 @@ export async function PUT(request: NextRequest) {
     
     const { token, password } = result.data
     
-    // In a real application, you would:
-    // 1. Validate the token from the database
-    // 2. Check if it's expired
-    // 3. Find the associated user
+    // Find the password reset token in the database
+    const resetToken = await prisma.passwordResetToken.findUnique({
+      where: { token },
+      include: { user: true }
+    })
     
-    // For demonstration purposes, we'll simulate a failure
-    // In a real application, you would look up the token and find the user
+    if (!resetToken) {
+      return NextResponse.json({ error: 'Token inválido ou expirado' }, { status: 400 })
+    }
     
-    // Mock: Find user by token (in a real app, you'd have a tokens table)
-    const userId = 'mock-user-id'
+    // Check if token is expired
+    if (resetToken.expiresAt < new Date()) {
+      await prisma.passwordResetToken.delete({ where: { token } })
+      return NextResponse.json({ error: 'Token expirado' }, { status: 400 })
+    }
     
     // Hash the new password
     const hashedPassword = await hashPassword(password)
     
     // Update the user's password
     await prisma.user.update({
-      where: { id: userId },
+      where: { id: resetToken.userId },
       data: { password: hashedPassword }
     })
+    
+    // Delete the used token
+    await prisma.passwordResetToken.delete({ where: { token } })
     
     return NextResponse.json({ 
       message: 'Senha redefinida com sucesso.' 

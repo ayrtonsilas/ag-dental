@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { Appointment, AppointmentStatus } from '@/types'
 import AppointmentCalendar from '@/components/appointments/FullCalendar'
 
@@ -26,48 +26,8 @@ export default function AppointmentsPage() {
   const [selectedAppointment, setSelectedAppointment] = useState<Appointment | null>(null)
   const [availableTimeSlots, setAvailableTimeSlots] = useState<string[]>([])
 
-  // Load appointments on mount
-  useEffect(() => {
-    fetchAppointments()
-    fetchPatients()
-    fetchProfessionals()
-  }, [selectedDate])
-  
-  // Load appointments and calculate available time slots when date or professional changes
-  useEffect(() => {
-    if (selectedDate) {
-      fetchAppointments()
-    }
-  }, [selectedDate])
-
-  // Calculate available time slots when appointments change
-  useEffect(() => {
-    if (appointments.length > 0 && formData.professionalId) {
-      calculateAvailableTimeSlots()
-    } else if (formData.professionalId) {
-      // If no appointments but we have a professional selected, show all time slots
-      setAvailableTimeSlots(generateTimeSlots())
-    } else {
-      setAvailableTimeSlots([])
-    }
-  }, [appointments, formData.professionalId])
-
-  // Update form date when selected date changes
-  useEffect(() => {
-    setFormData(prev => ({ ...prev, date: selectedDate }))
-  }, [selectedDate])
-
-  // Update available time slots when professional changes
-  useEffect(() => {
-    if (formData.professionalId) {
-      calculateAvailableTimeSlots()
-    } else {
-      setAvailableTimeSlots([])
-    }
-  }, [formData.professionalId])
-  
   // Fetch appointments for the selected date
-  const fetchAppointments = async () => {
+  const fetchAppointments = useCallback(async () => {
     try {
       // Construct the query params
       const params = new URLSearchParams()
@@ -97,61 +57,100 @@ export default function AppointmentsPage() {
       console.error('Error fetching appointments:', error)
       setError('Erro ao carregar consultas. Por favor, tente novamente.')
     }
-  }
-  
+  }, [selectedDate])
+
   // Fetch patients
-  const fetchPatients = async () => {
+  const fetchPatients = useCallback(async () => {
     try {
-      const response = await fetch('/api/patients?pageSize=100')
-      
-      if (!response.ok) {
-        throw new Error('Failed to fetch patients')
+      const response = await fetch('/api/patients')
+      if (response.ok) {
+        const data = await response.json()
+        setPatients(data.patients || [])
       }
-      
-      const data = await response.json()
-      setPatients(data.patients.map((patient: { id: string; name: string }) => ({
-        id: patient.id,
-        name: patient.name
-      })))
     } catch (error) {
-      console.error('Error fetching patients, falling back to mock data:', error)
-      
-      // Fallback to mock data
-      setPatients([
-        { id: 'patient1', name: 'João Silva' },
-        { id: 'patient2', name: 'Ana Oliveira' },
-        { id: 'patient3', name: 'Carlos Souza' },
-        { id: 'patient4', name: 'Mariana Costa' }
-      ])
+      console.error('Error fetching patients:', error)
+      setError('Erro ao carregar pacientes. Por favor, tente novamente.')
     }
-  }
-  
+  }, [])
+
   // Fetch professionals
-  const fetchProfessionals = async () => {
+  const fetchProfessionals = useCallback(async () => {
     try {
-      const response = await fetch('/api/professionals?pageSize=100')
-      
-      if (!response.ok) {
-        throw new Error('Failed to fetch professionals')
+      const response = await fetch('/api/professionals')
+      if (response.ok) {
+        const data = await response.json()
+        setProfessionals(data.professionals || [])
       }
-      
-      const data = await response.json()
-      setProfessionals(data.professionals.map((professional: { id: string; name: string }) => ({
-        id: professional.id,
-        name: professional.name
-      })))
     } catch (error) {
-      console.error('Error fetching professionals, falling back to mock data:', error)
-      
-      // Fallback to mock data
-      setProfessionals([
-        { id: 'professional1', name: 'Dra. Maria Santos' },
-        { id: 'professional2', name: 'Dr. Carlos Mendes' },
-        { id: 'professional3', name: 'Dra. Patricia Lima' }
-      ])
+      console.error('Error fetching professionals:', error)
+      setError('Erro ao carregar profissionais. Por favor, tente novamente.')
     }
-  }
+  }, [])
+
+  // Generate time slots
+  const generateTimeSlots = useCallback(() => {
+    const slots: string[] = []
+    for (let hour = 8; hour < 19; hour++) {
+      for (let minute = 0; minute < 60; minute += 30) {
+        slots.push(`${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`)
+      }
+    }
+    return slots
+  }, [])
+
+  // Calculate available time slots
+  const calculateAvailableTimeSlots = useCallback(() => {
+    if (!formData.professionalId) return
+
+    const allSlots = generateTimeSlots()
+    const bookedSlots = appointments
+      .filter(app => app.professionalId === formData.professionalId && app.date === selectedDate)
+      .map(app => app.startTime)
+
+    const available = allSlots.filter(slot => !bookedSlots.includes(slot))
+    setAvailableTimeSlots(available)
+  }, [appointments, formData.professionalId, selectedDate, generateTimeSlots])
+
+  // Load appointments on mount
+  useEffect(() => {
+    fetchAppointments()
+    fetchPatients()
+    fetchProfessionals()
+  }, [fetchAppointments, fetchPatients, fetchProfessionals])
   
+  // Load appointments and calculate available time slots when date or professional changes
+  useEffect(() => {
+    if (selectedDate) {
+      fetchAppointments()
+    }
+  }, [selectedDate, fetchAppointments])
+
+  // Calculate available time slots when appointments change
+  useEffect(() => {
+    if (appointments.length > 0 && formData.professionalId) {
+      calculateAvailableTimeSlots()
+    } else if (formData.professionalId) {
+      // If no appointments but we have a professional selected, show all time slots
+      setAvailableTimeSlots(generateTimeSlots())
+    } else {
+      setAvailableTimeSlots([])
+    }
+  }, [appointments, formData.professionalId, calculateAvailableTimeSlots, generateTimeSlots])
+
+  // Update form date when selected date changes
+  useEffect(() => {
+    setFormData(prev => ({ ...prev, date: selectedDate }))
+  }, [selectedDate])
+
+  // Update available time slots when professional changes
+  useEffect(() => {
+    if (formData.professionalId) {
+      calculateAvailableTimeSlots()
+    } else {
+      setAvailableTimeSlots([])
+    }
+  }, [formData.professionalId, calculateAvailableTimeSlots])
+
   // Helper to get color based on appointment status
   const getStatusColor = (status: AppointmentStatus): string => {
     switch (status) {
@@ -279,56 +278,6 @@ export default function AppointmentsPage() {
       setError(err instanceof Error ? err.message : 'Erro ao salvar consulta')
       setIsSubmitting(false)
     }
-  }
-  
-  // Generate time slots from 8:00 to 18:00 with 30min intervals
-  const generateTimeSlots = () => {
-    const slots = []
-    for (let hour = 8; hour < 18; hour++) {
-      for (let minute = 0; minute < 60; minute += 30) {
-        const time = `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`
-        slots.push(time)
-      }
-    }
-    return slots
-  }
-
-  // Calculate available time slots based on existing appointments
-  const calculateAvailableTimeSlots = () => {
-    const allSlots = generateTimeSlots()
-    const bookedSlots = new Set()
-
-    // Get appointments for the selected professional on the selected date
-    const professionalAppointments = appointments.filter(
-      app => app.professionalId === formData.professionalId && 
-             app.date === selectedDate &&
-             // Exclude the current appointment if we're editing
-             (!selectedAppointment || app.id !== selectedAppointment.id)
-    )
-
-    // Mark booked time slots
-    professionalAppointments.forEach(app => {
-      if (app.status !== 'CANCELLED' && app.status !== 'NO_SHOW') {
-        const startTime = app.startTime
-        const endTime = app.endTime
-        
-        // Convert times to minutes for easier comparison
-        const startMinutes = parseInt(startTime.split(':')[0]) * 60 + parseInt(startTime.split(':')[1])
-        const endMinutes = parseInt(endTime.split(':')[0]) * 60 + parseInt(endTime.split(':')[1])
-        
-        // Mark all slots between start and end time as booked
-        for (let minutes = startMinutes; minutes < endMinutes; minutes += 30) {
-          const hour = Math.floor(minutes / 60)
-          const minute = minutes % 60
-          const time = `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`
-          bookedSlots.add(time)
-        }
-      }
-    })
-
-    // Filter out booked slots
-    const availableSlots = allSlots.filter(slot => !bookedSlots.has(slot))
-    setAvailableTimeSlots(availableSlots)
   }
   
   // Handle calendar appointment click

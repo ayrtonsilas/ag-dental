@@ -70,7 +70,7 @@ export async function PUT(req: NextRequest, context: Context) {
       }
 
       // Update user and professional in transaction
-      const updatedProfessional = await db.$transaction(async (tx) => {
+      const updatedProfessional = await db.$transaction(async tx => {
         // Update user if needed
         if (role || password) {
           await tx.user.update({
@@ -132,7 +132,7 @@ export async function DELETE(req: NextRequest, context: Context) {
       }
 
       // Delete professional and associated user
-      await db.$transaction(async (tx) => {
+      await db.$transaction(async tx => {
         // Delete professional first due to foreign key constraint
         await tx.professional.delete({
           where: { id }

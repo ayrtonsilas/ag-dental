@@ -6,14 +6,15 @@ import Link from 'next/link'
 import { useAuth } from '@/lib/AuthContext'
 import { useNotification } from '@/components/Notification'
 
-// Extract the expected RegisterData type from AuthContext
-type RegisterData = {
-  name: string;
-  email: string;
-  password: string;
-  companyName?: string;
-  companyDocument?: string;
-};
+interface RegisterFormData {
+  name: string
+  email: string
+  phone: string
+  password: string
+  role: string
+  companyName?: string
+  companyDocument?: string
+}
 
 export default function RegisterPage() {
   const [name, setName] = useState('')
@@ -61,14 +62,17 @@ export default function RegisterPage() {
       }
       
       // Both steps are now complete
-      const result = await register({
+      const registerData: RegisterFormData = {
         name,
         email,
+        phone,
         password,
-        phone, // This is expected by the implementation but not by TypeScript
+        role: 'USER',
         companyName,
         companyDocument: companyDocument || undefined
-      } as any) // Use type assertion to bypass type checking
+      }
+      
+      const result = await register(registerData)
       
       if (result.success) {
         showNotification('Registro realizado com sucesso!', 'success')

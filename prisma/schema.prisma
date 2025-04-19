@@ -21,6 +21,7 @@ model User {
   professional  Professional?
   sessions      Session[]
   company       Company?      @relation(fields: [companyId], references: [id])
+  passwordResetTokens PasswordResetToken[]
 }
 
 model Company {
@@ -98,6 +99,15 @@ model Appointment {
   updatedAt      DateTime     @updatedAt
   patient        Patient      @relation(fields: [patientId], references: [id], onDelete: Cascade)
   professional   Professional @relation(fields: [professionalId], references: [id], onDelete: Cascade)
+}
+
+model PasswordResetToken {
+  id        String   @id @default(cuid())
+  token     String   @unique
+  userId    String
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 enum Role {
