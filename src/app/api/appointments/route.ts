@@ -123,6 +123,16 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: `Missing required field: ${field}` }, { status: 400 })
       }
     }
+
+    // Check if appointment is in the past
+    const appointmentDateTime = new Date(`${data.date}T${data.startTime}`)
+    const now = new Date()
+    
+    if (appointmentDateTime < now) {
+      return NextResponse.json({ 
+        error: 'Não é possível agendar consultas no passado.'
+      }, { status: 400 })
+    }
     
     // Check for conflicting appointments
     console.log('Checking for conflicts with data:', {
@@ -258,6 +268,16 @@ export async function PUT(req: NextRequest) {
         return NextResponse.json({ error: `Missing required field: ${field}` }, { status: 400 })
       }
     }
+
+    // Check if appointment is in the past
+    const appointmentDateTime = new Date(`${data.date}T${data.startTime}`)
+    const now = new Date()
+    
+    if (appointmentDateTime < now) {
+      return NextResponse.json({ 
+        error: 'Não é possível agendar consultas no passado.'
+      }, { status: 400 })
+    }
     
     // Check for conflicting appointments
     const existingAppointment = await db.appointment.findFirst({
@@ -269,6 +289,7 @@ export async function PUT(req: NextRequest) {
               { date: data.date },
               { professionalId: data.professionalId },
               { status: { notIn: ['CANCELLED', 'NO_SHOW'] } },
+              { id: { not: id } }, // Exclude current appointment
               {
                 OR: [
                   {
@@ -288,7 +309,14 @@ export async function PUT(req: NextRequest) {
               { date: data.date },
               { patientId: data.patientId },
               { status: { notIn: ['CANCELLED', 'NO_SHOW'] } },
-              { id: { not: id } } // Exclude current appointment
+              { id: { not: id } }, // Exclude current appointment
+              // Only check for multiple appointments if we're not just updating the status
+              ...(data.status === 'IN_PROGRESS' ? [] : [{
+                OR: [
+                  { startTime: { not: data.startTime } },
+                  { endTime: { not: data.endTime } }
+                ]
+              }])
             ]
           },
           {
